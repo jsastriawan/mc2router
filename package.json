@@ -1,0 +1,18 @@
+{
+    "name": "mc2router",
+    "main": "index.html",
+    "version": "0.0.1a",
+    "description": "MeshCentral 2 Routing Tool",
+    "window" : {
+        "icon": "favicon.png",
+        "toolbar": true,
+        "frame": true,
+        "width": 494,
+        "min_width": 494,
+        "max_width": 494,
+        "height": 300,
+        "min_height": 300,
+        "max_height": 300,
+        "resizable": false
+    }
+}

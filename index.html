@@ -1,0 +1,601 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>MeshCentral 2 Router</title>
+    <link rel="stylesheet" href="style.css" type="text/css">
+</head>
+<body style="width:100%;height:100%;margin:0;padding:0;overflow:hidden;background-color:#DDD">
+    <img src="MC2-Banner.png" />
+    <datalist id="ServerUrls">
+        <option value="https://alt.meshcentral.com/">
+    </datalist>
+    <div id="panel0" style="height:200px">
+    </div>
+    <div id="panel1" style="height:200px;display:none;background-color:white;">
+        <table style="padding-top:30px;padding-left:70px">
+            <tr>
+                <td class="frm_name">Server</td>
+                <td>&nbsp;<input id="ServerUrl" name="mesh_url" list="ServerUrls" type="text" maxlength=256 style="width:250px"></td>
+            </tr>
+            <tr>
+                <td class="frm_name">Username</td>
+                <td>&nbsp;<input id="ServerUser" name="mesh_username" type="text" maxlength=256 style="width:250px"></td>
+            </tr>
+            <tr>
+                <td class="frm_name">Password</td>
+                <td>&nbsp;<input id="ServerPass" name="mesh_password" type="password" maxlength=256 style="width:250px"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><input id="loginButton" type="button" value="Login" style="float:right" onclick="performLogin()" /></td>
+            </tr>
+        </table>
+        <br />
+    </div>
+    <div id="panel2" style="height:200px;display:none;background-color:white;">
+        <table style="padding-top:70px;width:100%">
+            <tbody>
+                <tr>
+                    <td class="frm_name" style="text-align:center;font-size:2em">Connecting...</td>
+                </tr>
+                </tbody>
+        </table>
+        <br />
+    </div>
+
+    <div id="panel3" style="height:200px;display:none;background-color:white;">
+        <form id=main_form>
+            <table style="padding-left:5px;width:100%">
+                <tbody>
+                    <tr>
+                        <td class="frm_name" style='text-align: center;' colspan="2">Meshcentral 2 Router Configuration</td>
+                    </tr>
+                    <tr>
+                        <td class="frm_name">
+                            Use Proxy<input type="checkbox" name="use_proxy" onchange="useProxyChanged()"></td>
+                        <td>
+                            Type<input type="radio" name="proxy_type" value="http" checked>HTTP<input type="radio" name="proxy_type" value="socks">SOCKS</td>
+                    </tr>
+                    <tr>
+                        <td class="frm_name">Proxy </td>
+                        <td><input type="input" name="proxy_host" size='30' disabled>&nbsp;<input type="input" name="proxy_port" size='5' disabled></td>
+                    </tr>
+                    <tr>
+                        <td class="frm_name">SSH (Putty)</td>
+                        <td><input type="input" name="ssh" size='40' readonly><input type='file' name='ssh_file' id='ssh_file' onchange="updateSshInput()" style="display:none;">
+                            <input type="button" value="..." onClick="Q('ssh_file').click();"></td>
+                    </tr>
+                    <tr>
+                        <td class="frm_name">SFTP (FileZilla)</td>
+                        <td><input type="input" name="sftp" size='40' readonly><input type='file' name='sftp_file' id='sftp_file' onchange="updateSftpInput()" style="display:none;">
+                            <input type="button" value="..." onClick="Q('sftp_file').click();"></td>
+                    </tr>
+                    <tr>
+                        <td class="frm_name">RDP (MSTSC)</td>
+                        <td><input type="input" name="rdp" size='40' readonly><input type='file' name='rdp_file' id='rdp_file' onchange="updateRdpInput()" style="display:none;">
+                            <input type="button" value="..." onClick="Q('rdp_file').click();"></td>
+                    </tr>
+                    <tr>
+                        <td>&nbsp;</td>
+                        <td>
+                                <input type="button" name="loadconfig" value="Load" onClick="loadConfig()">
+                                <input type="button" name="saveconfig" value="Save" onClick="saveConfig()">
+                            <input type="button" name="close" value="Close" onClick="setPanel(1)">&nbsp;                            
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </form>
+        </div>
+        <div id="panel4" style="height:200px;display:none;background-color:white;">
+                <table style="padding-left:30px;padding-top:30px;width:100%">
+                    <tbody>
+                        <tr>
+                            <td class="frm_name">Mesh</td>
+                            <td><select id='select_mesh' onchange="meshChanged(this)"></select></td>
+                        </tr>
+                        <tr>
+                            <td class="frm_name">Node</td>
+                            <td>
+                            <div id="select_node_div" style="width:350px;height:100px; overflow-y:scroll">
+                            </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>&nbsp;</td>
+                            <td>
+                                <input type="button" value="Reload" onclick="loadMeshes()">&nbsp;
+                                <input type="button" value="SSH" onclick="sshClicked()">&nbsp;
+                                <input type="button" value="SFTP" onclick="sftpClicked()">&nbsp;
+                                <input type="button" value="Remote Desktop" onclick="rdpClicked()">
+                            </td>
+                        </tr>
+                        </tbody>
+                </table>
+                <br />
+            </div>
+        
+    <img src="Empty-Banner.png" />    
+    <script>
+        // MeshSimpleAPI tools
+        
+        var fs = require("fs");
+        var request = require('request');
+        var constants = require('constants');
+        var tls_options = { rejectUnauthorized: false, strictSSL: false, secureOptions: constants.SSL_OP_NO_TLSv1_2 };
+        var specialRequest = request.defaults(tls_options);
+        var net = require('net');
+        var spawn = require('child_process');
+        var WebSocket = require('ws');
+        var Url = require('url');
+        var querystring = require("querystring");
+        var https = require('https');
+        var nodes = {};
+        
+
+        function start() {
+            var nw_menubar = new nw.Menu({ type: "menubar" });
+            var fl_menu = new nw.Menu();
+            fl_menu.append(new nw.MenuItem({
+                label: "Configure",
+                click: function () {
+                    setPanel(3);
+                }
+            }));
+            fl_menu.append(new nw.MenuItem({
+                label: "Reset",
+                click: function () {
+                    nw.Window.get().reloadIgnoringCache();
+                    console.log("Window reload");
+                }
+            }));
+
+            nw_menubar.append(new nw.MenuItem({
+                label: "File",
+                submenu: fl_menu
+            }));
+            nw.Window.get().menu = nw_menubar;
+
+            setPanel(1);
+            loadConfig();
+        }
+
+        function performLogin() {
+            setPanel(2);
+            loadMeshes();
+        }
+
+        function loadConfig() {
+            try {
+                var cfg = JSON.parse(fs.readFileSync("config.json"));
+                var frm = document.getElementById("main_form");
+                if (frm != null) {
+                    document.getElementsByName("mesh_url")[0].setAttribute('value', cfg.mesh_url);
+                    document.getElementsByName("mesh_username")[0].setAttribute('value', cfg.mesh_username);
+                    document.getElementsByName("mesh_password")[0].setAttribute('value', cfg.mesh_password);
+                    document.getElementsByName("use_proxy")[0].checked = cfg.use_proxy;
+                    var rb = document.getElementsByName("proxy_type");
+                    for (var i = 0; i < rb.length; i++) { if (rb[i].value == cfg.proxy_type) { rb[i].checked = true; } }
+                    document.getElementsByName("proxy_host")[0].setAttribute('value', cfg.proxy_host);
+                    document.getElementsByName("proxy_port")[0].setAttribute('value', cfg.proxy_port);
+                    document.getElementsByName("ssh")[0].setAttribute('value', cfg.ssh);
+                    document.getElementsByName("sftp")[0].setAttribute('value', cfg.sftp);
+                    document.getElementsByName("rdp")[0].setAttribute('value', cfg.rdp);
+                    useProxyChanged();
+                }
+            } catch (e) {
+                console.log("Exception: " + e);
+            }
+        }
+
+        function saveConfig() {
+            var cfg = readForm();
+            delete cfg["meshidhex"];
+            delete cfg["nodeidhex"];
+            fs.writeFileSync('config.json', JSON.stringify(cfg, null, '\t'));
+        }
+
+        function setPanel(number) {
+            for (var i = 0; i < 10; i++) { try { QV('panel' + i, i == number); } catch (e) { } }
+        }
+
+        function readForm() {
+            var data = {};
+            data["mesh_url"] = document.getElementsByName("mesh_url")[0].value;
+            data["mesh_username"] = document.getElementsByName("mesh_username")[0].value;
+            data["mesh_password"] = document.getElementsByName("mesh_password")[0].value;
+            data["ssh"] = document.getElementsByName("ssh")[0].value;
+            data["sftp"] = document.getElementsByName("sftp")[0].value;
+            data['rdp'] = document.getElementsByName("rdp")[0].value;
+            data["use_proxy"] = document.getElementsByName("use_proxy")[0].checked;
+            data["proxy_type"] = document.querySelector('input[name="proxy_type"]:checked').value;
+            data["proxy_host"] = document.getElementsByName("proxy_host")[0].value;
+            data["proxy_port"] = document.getElementsByName("proxy_port")[0].value;
+            var idx = document.getElementById("select_mesh").selectedIndex;
+            if (idx >= 0) {                
+                data["meshidhex"] = document.getElementById("select_mesh").options[idx].value;                
+            } else {
+                data["meshidhex"] = null;
+            }
+            if (document.querySelector('input[name="select_node_radio"]:checked')!=null) {                
+                data["nodeidhex"] = document.querySelector('input[name="select_node_radio"]:checked').value;
+            } else {
+                data["nodeidhex"] = null;
+            }
+            return data;
+        }
+
+        function updateSshInput() {
+            var fn = document.getElementsByName('ssh_file')[0].value;
+            document.getElementsByName('ssh')[0].setAttribute('value', fn);
+        }
+
+        function updateSftpInput() {
+            var fn = document.getElementsByName('sftp_file')[0].value;
+            document.getElementsByName('sftp')[0].setAttribute('value', fn);
+        }
+
+        function updateRdpInput() {
+            var fn = document.getElementsByName('rdp_file')[0].value;
+            document.getElementsByName('rdp')[0].setAttribute('value', fn);
+        }
+
+        function loadMeshes() {
+            nodes = {};
+            var data = readForm();
+            var proxyagent = null;
+            if (data["use_proxy"] && data["proxy_type"] == "http") {
+                var HttpProxyAgent = require('https-proxy-agent');
+                proxyAgent = new HttpProxyAgent("http://" + data["proxy_host"] + ":" + data["proxy_port"]);
+            } else if (data["use_proxy"] && data["proxy_type"] == "socks") {
+                // sock agent init
+                var SocksProxyAgent = require('socks-proxy-agent');
+                proxyagent = new SocksProxyAgent('socks://' + data['proxy_host'] + ':' + data['proxy_port'], true);
+            }
+
+
+            var cred = { username: data["mesh_username"], password: data["mesh_password"] };
+            var url = Url.parse(data["mesh_url"]);
+            // prepare request options
+            var auth_postdata = querystring.stringify(cred);
+            var options = JSON.parse(JSON.stringify(tls_options));
+            options.hostname = url.hostname;
+            options.method = "POST";
+            options.port = (url.port == null) ? "443" : url.port;
+            options.path = "/login";
+            options.timeout = 10000;
+            options.followRedirect = true;
+            options.maxRedirects = 10;
+            options.headers = {
+                'Content-type': 'application/x-www-form-urlencoded',
+                'Content-length': Buffer.byteLength(auth_postdata)
+            }
+
+            if (proxyagent != null) {
+                options.agent = proxyagent;
+            }
+
+            //console.log(JSON.stringify(options));
+            // authenticate
+            var req = https.request(options, function (res) {
+                if (res.statusCode == 302) {
+                    var ws_headers = {
+                        'Cookie': res.headers['set-cookie']
+                    };
+
+                    var ws_options = JSON.parse(JSON.stringify(tls_options));
+                    ws_options.headers = ws_headers;
+                    ws_options.agent = proxyagent;
+                    var ws = new WebSocket('wss://' + options.hostname + ":" + options.port + "/control.ashx", [], ws_options);
+                    ws.on('open', function () {
+                        //console.log("WS open");
+                        var jstr = { "action": "nodes" };
+                        ws.send(JSON.stringify(jstr));
+                    });
+
+                    ws.on('close', function (code, reason) {
+                        //console.log('WS close:' + code + ":" + reason);
+                    });
+
+                    ws.on('error', function (er) {
+                        //console.log('WS error:' + er);
+                    });
+
+                    ws.on('message', function (data) {
+                        var msg = null;
+                        try {
+                            msg = JSON.parse(data);
+                        } catch (e) {
+                            msg = data;
+                        }
+                        //console.log('WS message: ' + new Date().toString() + '\n' + JSON.stringify(msg,null,"   "));
+                        if (msg.action == "nodes") {
+                            nodes = JSON.parse(JSON.stringify(msg.nodes));
+                            //console.log(JSON.stringify(nodes));
+                            var jstr = { "action": "meshes" };
+                            ws.send(JSON.stringify(jstr));
+                        } else if (msg.action == "meshes") {
+                            if (msg.meshes) {
+                                var select_mesh = document.getElementById("select_mesh");
+                                select_mesh.options.length = 0;
+                                for (var i = 0; i < msg.meshes.length; i++) {
+                                    var opt = document.createElement("option");
+                                    opt.text = msg.meshes[i].name;
+                                    opt.setAttribute("value", msg.meshes[i]._id);
+                                    select_mesh.add(opt);
+                                }
+                                if (msg.meshes.length>0) {                                    
+                                    select_mesh.options[0].selected = true;
+                                    meshChanged(select_mesh);
+                                }
+                            }
+                            setPanel(4);
+                            ws.close();// just close it
+                        }
+                    });
+
+                }
+                res.on("data", function (chunk) {
+                    //console.log(chunk.toString());
+                });
+            });
+            req.write(auth_postdata);
+            req.end();
+        }
+
+        function meshChanged(obj) {
+            loadNodes(obj.value);
+        }
+
+        function loadNodes(meshidhex) {
+            QH("select_node_div","");// clear out list container
+            if (Object.keys(nodes).indexOf(meshidhex) >= 0) {
+                var node_list = Object.values(nodes)[Object.keys(nodes).indexOf(meshidhex)];
+                for (var i = 0; i < node_list.length; i++) {
+                    var str = "<div style='vertical-align:middle;'>";
+                    str += "<input type='radio' name='select_node_radio' value='"+node_list[i]._id+"' style='vertical-align: middle;'>&nbsp;";
+                    if (!node_list[i].icon) {node_list[i].icon=1;}
+                    if (node_list[i].conn != null && node_list[i].conn != 0) {
+                        str += "<img class='mini_icon_on' src='icons200-" + node_list[i].icon + "-1.png'>&nbsp;";
+                    } else {
+                        str += "<img class='mini_icon_off' src='icons200-" + node_list[i].icon + "-1.png'>&nbsp;";
+                    }
+                    str += node_list[i].name+"<br/>";
+                    str +="</div>";
+                    QA("select_node_div",str);
+                }                
+            }
+        }
+
+        function createPipeAndExec(exepath, args, opts, tunnelcfg) {
+            // sanity check
+            if (!fs.existsSync(exepath)) {
+                alert("File "+exepath+" is not found.");
+                return;
+            }
+
+            if (tunnelcfg==null || tunnelcfg.nodeid==null) {
+                alert("Invalid tunnel request configuration.");
+                return;
+            }
+            // proxy setting
+            var frm_data = readForm();
+            var use_proxy = frm_data["use_proxy"];
+            var proxy_type = frm_data["proxy_type"];
+            var proxy_host = frm_data["proxy_host"];
+            var proxy_port = frm_data["proxy_port"];
+
+            var proxyagent = null;
+            if (frm_data["use_proxy"] && frm_data["proxy_type"] == "http") {
+                var HttpProxyAgent = require('https-proxy-agent');
+                proxyAgent = new HttpProxyAgent("http://" + frm_data["proxy_host"] + ":" + frm_data["proxy_port"]);
+            } else if (frm_data["use_proxy"] && frm_data["proxy_type"] == "socks") {
+                // sock agent init
+                var SocksProxyAgent = require('socks-proxy-agent');
+                proxyagent = new SocksProxyAgent('socks://' + frm_data['proxy_host'] + ':' + frm_data['proxy_port'], true);
+            }
+
+            var cred = { username: frm_data["mesh_username"], password: frm_data["mesh_password"] };
+            var url = Url.parse(frm_data["mesh_url"]);
+
+            // tcp server
+            var tcpserver = net.createServer();
+
+            // handling client connection
+            tcpserver.on("connection", function (csock) {
+                // create buffer data
+                csock.xdata = null;
+                // prepare request options
+                var ws_options = JSON.parse(JSON.stringify(tls_options));
+                if (proxyagent != null) {
+                    ws_options.agent = proxyagent;
+                }
+
+                var port = (url.port == null) ? "443" : url.port
+
+                var wsurl = "wss://" + url.hostname + ":" + port + "/meshrelay.ashx?";
+                wsurl += "user=" + cred.username;
+                wsurl += "&pass=" + cred.password;
+                wsurl += "&nodeid=" + tunnelcfg["nodeid"];
+                wsurl += "&tcpport=" + tunnelcfg["port"];
+
+                var ws = new WebSocket(wsurl, [], ws_options);
+                // wiring up
+                ws.csock = csock;
+                ws.connected = false;
+                csock.ws = ws;
+
+                ws.on('open', function () {
+                    //console.log("WS open");
+                });
+
+                ws.on('close', function (code, reason) {
+                    //console.log('WS close:' + code + ":" + reason);
+                    csock.ws = null;
+                });
+
+                ws.on('error', function (er) {
+                    console.log('WS error:' + er);
+                });
+
+                ws.on('message', function (msg) {
+                    //console.log('WS message: ' + new Date().toString() + '\n' + msg);
+                    if (ws.connected && ws.csock != null) {
+                        //console.log("Data from WS: " + msg);
+                        try {
+                            ws.csock.write(msg, 'binary');
+                        } catch (e) {
+                            console.log(e);
+                        }
+                    } else if (msg.toString() == 'c') {
+                        //console.log("Receive c");
+                        ws.connected = true;
+                        // send pending data
+                        if (ws.csock.xdata != null) {
+                            //console.log("Sending buffer to WS: " + ws.csock.xdata);
+                            try {
+                                ws.send(ws.csock.xdata, "binary");
+                                ws.csock.xdata = null;
+                            } catch (e) {
+                                console.log(e);
+                            }
+                        }
+                    }
+                });
+                // csock eventing
+                csock.on("data", function (chunk) {
+                    if (csock.ws != null && csock.ws.connected == true) {
+                        try {
+                            if (csock.xdata != null) {
+                                console.log("Sending buffer to WS: " + chunk);
+                                csock.ws.send(csock.xdata, "binary");
+                                csock.xdata = null;
+                            }
+                            //console.log("Data from client: " + chunk);
+                            csock.ws.send(chunk, "binary");
+                        } catch (e) {
+                            console.log(e);
+                        }
+                    } else {
+                        //console.log("Put data into buffer");
+                        if (csock.xdata == null) {
+                            csock.xdata = chunk;
+                        } else {
+                            csock.xdata += chunk;
+                        }
+                    }
+                });
+
+                csock.on("error", function (e) {
+                    console.log(e);
+                    csock.ws.csock = null;
+                });
+
+                csock.on("end", function () {
+                    if (csock.ws != null) {
+                        csock.ws.close();
+                    }
+                })
+
+                csock.on("close", function () {
+                    if (csock.ws != null) {
+                        csock.ws.close();
+                    }
+                })
+
+            });
+
+            tcpserver.listen(0, '127.0.0.1', function () {
+                var lport = tcpserver.address()["port"];
+                //console.log("Local port is: "+lport);
+                var idx = args.indexOf('lport');
+                if (idx >= 0) {
+                    args[idx] = lport;
+                } else {
+                    for (var i = 0; i < args.length; i++) {
+                        if (args[i].endsWith(":lport")) {
+                            var newstr = args[i].replace(":lport", ":" + lport);
+                            args[i] = newstr;
+                            //console.log("Replace lport: "+newstr);
+                        }
+                    }
+                }
+                //console.log("Exepath:"+exepath+" "+JSON.stringify(args));
+                var cp = spawn.spawn(exepath, args, opts);
+                cp.on("exit", function () {
+                    try {
+                        //console.log("Shutting down TCPServer");
+                        tcpserver.close();
+                    } catch (e) {
+                        console.log("Error: " + e);
+                    }
+                });
+            });
+        }
+
+        function sshClicked() {
+            var data = readForm();
+            var exepath = data['ssh'];
+            var args = ['-ssh', '127.0.0.1', '-P', 'lport'];
+            var tunnelcfg = {
+                nodeid: data["nodeidhex"],
+                port: 22
+            };
+            createPipeAndExec(exepath, args, [], tunnelcfg);
+        }
+
+        function sftpClicked() {
+            var data = readForm();
+            var exepath = data['sftp'];
+            var user = window.prompt("Please enter SFTP username:", "");
+            if (user == "") {
+                window.alert("SFTP cannot be invoked without passing username!");
+                return;
+            }
+            var tunnelcfg = {
+                nodeid: data["nodeidhex"],
+                port: 22
+            };
+            var args = ['--verbose', 'sftp://' + user + '@127.0.0.1:lport', '-l=ask'];
+            createPipeAndExec(exepath, args, [], tunnelcfg);
+        }
+
+        function rdpClicked() {
+            var data = readForm();
+            var exepath = data['rdp'];
+            var args = ['/v:127.0.0.1:lport'];
+            var tunnelcfg = {
+                nodeid: data["nodeidhex"],
+                port: 3389
+            };
+            createPipeAndExec(exepath, args, [], tunnelcfg);
+        }
+
+        function useProxyChanged() {
+            var up_ticked = document.getElementsByName("use_proxy")[0].checked;
+            if (up_ticked) {
+                document.getElementsByName("proxy_host")[0].disabled = false;
+                document.getElementsByName("proxy_port")[0].disabled = false;
+            } else {
+                document.getElementsByName("proxy_host")[0].disabled = true;
+                document.getElementsByName("proxy_port")[0].disabled = true;
+            }
+        }
+
+        function notimplementedyet() {
+            alert("Not implemented yet.");
+        }
+        
+        start();
+
+        // Quick UI functions, a bit of a replacement for jQuery
+        //function Q(x) { if (document.getElementById(x) == null) { console.log('Invalid element: ' + x); } return document.getElementById(x); }                            // "Q"
+        function Q(x) { return document.getElementById(x); }                            // "Q"
+        function QS(x) { try { return Q(x).style; } catch (x) { } }                     // "Q" style
+        function QE(x, y) { try { Q(x).disabled = !y; } catch (x) { } }                 // "Q" enable
+        function QV(x, y) { try { QS(x).display = (y ? '' : 'none'); } catch (x) { } }  // "Q" visible
+        function QA(x, y) { Q(x).innerHTML += y; }                                      // "Q" append
+        function QH(x, y) { Q(x).innerHTML = y; }                                       // "Q" html
+    </script>
+</body>
+</html>
