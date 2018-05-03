@@ -9,9 +9,9 @@
     <datalist id="ServerUrls">
         <option value="https://alt.meshcentral.com/">
     </datalist>
-    <div id="panel0" style="height:200px">
+    <div id="panel0" style="height:250px">
     </div>
-    <div id="panel1" style="height:200px;display:none;background-color:white;">
+    <div id="panel1" style="height:250px;display:none;background-color:white;">
         <table style="padding-top:30px;padding-left:70px">
             <tr>
                 <td class="frm_name">Server</td>
@@ -32,7 +32,7 @@
         </table>
         <br />
     </div>
-    <div id="panel2" style="height:200px;display:none;background-color:white;">
+    <div id="panel2" style="height:250px;display:none;background-color:white;">
         <table style="padding-top:70px;width:100%">
             <tbody>
                 <tr>
@@ -43,7 +43,7 @@
         <br />
     </div>
 
-    <div id="panel3" style="height:200px;display:none;background-color:white;">
+    <div id="panel3" style="height:280px;display:none;background-color:white;">
         <form id=main_form>
             <table style="padding-left:5px;width:100%">
                 <tbody>
@@ -75,6 +75,24 @@
                         <td><input type="input" name="rdp" size='40' readonly><input type='file' name='rdp_file' id='rdp_file' onchange="updateRdpInput()" style="display:none;">
                             <input type="button" value="..." onClick="Q('rdp_file').click();"></td>
                     </tr>
+                    <tr><td class="frm_name" style="text-align: center" colspan="2">Custom tool</td></tr>
+                    <tr>                        
+                        <td class="frm_name">Label</td> 
+                        <td><input type="input" name="ctm_lbl" size='35'></td>
+                    <tr>
+                    <tr>
+                        <td class="frm_name">Path</td>
+                        <td><input type="input" name="ctm" size='40' readonly><input type='file' name='ctm_file' id='ctm_file' onchange="updateCtmInput()" style="display:none;">
+                            <input type="button" value="..." onClick="Q('ctm_file').click();"></td>
+                    </tr>
+                    <tr>
+                        <td class="frm_name">Arguments</td>
+                        <td><input type="input" name="ctm_args" size='30'></td>
+                    </tr>
+                    <tr>
+                        <td class="frm_name">Port</td>
+                        <td><input type="input" name="ctm_port" size='5'></td>
+                    </tr>                    
                     <tr>
                         <td>&nbsp;</td>
                         <td>
@@ -87,7 +105,7 @@
             </table>
         </form>
         </div>
-        <div id="panel4" style="height:200px;display:none;background-color:white;">
+        <div id="panel4" style="height:250px;display:none;background-color:white;">
                 <table style="padding-left:30px;padding-top:30px;width:100%">
                     <tbody>
                         <tr>
@@ -96,18 +114,23 @@
                         </tr>
                         <tr>
                             <td class="frm_name">Node</td>
+                            <td><input type=text id='nsearch' name="nsearch" size=35 placeholder="Search nodes" onkeyup="nsearchInputChanged()"></td>
+                        </tr>
+                        <tr>
+                            <td>
+                            </td>
                             <td>
                             <div id="select_node_div" style="width:350px;height:100px; overflow-y:scroll">
                             </div>
                             </td>
                         </tr>
                         <tr>
-                            <td>&nbsp;</td>
-                            <td>
+                            <td colspan="2">
                                 <input type="button" value="Reload" onclick="loadMeshes()">&nbsp;
                                 <input type="button" value="SSH" onclick="sshClicked()">&nbsp;
                                 <input type="button" value="SFTP" onclick="sftpClicked()">&nbsp;
                                 <input type="button" value="Remote Desktop" onclick="rdpClicked()">
+                                <input type="button" id="ctm_btn" name="ctm_btn" value="Custom Tool" onclick="ctmClicked()">
                             </td>
                         </tr>
                         </tbody>
@@ -181,6 +204,12 @@
                     document.getElementsByName("ssh")[0].setAttribute('value', cfg.ssh);
                     document.getElementsByName("sftp")[0].setAttribute('value', cfg.sftp);
                     document.getElementsByName("rdp")[0].setAttribute('value', cfg.rdp);
+                    document.getElementsByName("ctm")[0].setAttribute('value', cfg.ctm);
+                    document.getElementsByName("ctm_lbl")[0].setAttribute('value', cfg.ctm_lbl);
+                    document.getElementsByName("ctm_btn")[0].setAttribute('value', cfg.ctm_lbl);
+                    document.getElementsByName("ctm_args")[0].setAttribute('value', cfg.ctm_args);
+                    document.getElementsByName("ctm_port")[0].setAttribute('value', cfg.ctm_port);
+
                     useProxyChanged();
                 }
             } catch (e) {
@@ -207,6 +236,10 @@
             data["ssh"] = document.getElementsByName("ssh")[0].value;
             data["sftp"] = document.getElementsByName("sftp")[0].value;
             data['rdp'] = document.getElementsByName("rdp")[0].value;
+            data['ctm'] = document.getElementsByName("ctm")[0].value;
+            data['ctm_lbl'] = document.getElementsByName("ctm_lbl")[0].value;
+            data['ctm_args'] = document.getElementsByName("ctm_args")[0].value;
+            data['ctm_port'] = document.getElementsByName("ctm_port")[0].value;
             data["use_proxy"] = document.getElementsByName("use_proxy")[0].checked;
             data["proxy_type"] = document.querySelector('input[name="proxy_type"]:checked').value;
             data["proxy_host"] = document.getElementsByName("proxy_host")[0].value;
@@ -238,6 +271,11 @@
         function updateRdpInput() {
             var fn = document.getElementsByName('rdp_file')[0].value;
             document.getElementsByName('rdp')[0].setAttribute('value', fn);
+        }
+
+        function updateCtmInput() {
+            var fn = document.getElementsByName('ctm_file')[0].value;
+            document.getElementsByName('ctm')[0].setAttribute('value', fn);
         }
 
         function loadMeshes() {
@@ -345,6 +383,37 @@
 
         function meshChanged(obj) {
             loadNodes(obj.value);
+            nsearchInputChanged();
+        }
+
+        function nsearchInputChanged() {            
+            var x = Q('nsearch').value.toLowerCase().trim();            
+            var meshidhex = Q('select_mesh').value;
+            var node_list = Object.values(nodes)[Object.keys(nodes).indexOf(meshidhex)];
+            if (x == '') {
+                for (var d in node_list) {
+                    QV(node_list[d]._id.replace(/\/+/, ''), true);
+                }
+            } else {                
+                var rs = x.split(/\s+/).join('|');
+                var rx = new RegExp(rs);
+                for (var d in node_list) {
+                    var nid= node_list[d]._id.replace(/\/+/, '');
+                    var nd = Q(nid);
+                    var vsb = (rx.test(node_list[d].name.toLowerCase())) || (node_list[d].hostl != null && rx.test(node_list[d].hostl.toLowerCase()));
+                    QV(nid,vsb);
+                    if ((vsb == false) && node_list[d].tags) {
+                        for (var s in node_list[d].tags) {
+                            if (rx.test(node_list[d].tags[s].toLowerCase())) {
+                                QV(nid,true);                                
+                                break;
+                            } else {
+                                QV(nid,false);                                
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         function loadNodes(meshidhex) {
@@ -352,7 +421,7 @@
             if (Object.keys(nodes).indexOf(meshidhex) >= 0) {
                 var node_list = Object.values(nodes)[Object.keys(nodes).indexOf(meshidhex)];
                 for (var i = 0; i < node_list.length; i++) {
-                    var str = "<div style='vertical-align:middle;'>";
+                    var str = "<div style='vertical-align:middle;display:block;' id='"+(node_list[i]._id).replace(/\/+/,'')+"'>";
                     str += "<input type='radio' name='select_node_radio' value='"+node_list[i]._id+"' style='vertical-align: middle;'>&nbsp;";
                     if (!node_list[i].icon) {node_list[i].icon=1;}
                     if (node_list[i].conn != null && node_list[i].conn != 0) {
@@ -432,6 +501,11 @@
                 ws.on('close', function (code, reason) {
                     //console.log('WS close:' + code + ":" + reason);
                     csock.ws = null;
+                    try {
+                        csock.end();
+                    } catch (e) {
+                        //console.log(e);
+                    }
                 });
 
                 ws.on('error', function (er) {
@@ -441,9 +515,13 @@
                 ws.on('message', function (msg) {
                     //console.log('WS message: ' + new Date().toString() + '\n' + msg);
                     if (ws.connected && ws.csock != null) {
-                        //console.log("Data from WS: " + msg);
+                        //console.log("Data from WS: " + Buffer.byteLength(msg));
                         try {
-                            ws.csock.write(msg, 'binary');
+                            //ws.pause();
+                            //console.log("Sending to CSOCK: "+ msg);
+                            ws.csock.write(msg, function() {
+                                //try {ws.resume();} catch (ex) {console.log(ex)}
+                            });
                         } catch (e) {
                             console.log(e);
                         }
@@ -454,7 +532,7 @@
                         if (ws.csock.xdata != null) {
                             //console.log("Sending buffer to WS: " + ws.csock.xdata);
                             try {
-                                ws.send(ws.csock.xdata, "binary");
+                                ws.send(Buffer.from(ws.csock.xdata,"binary"));
                                 ws.csock.xdata = null;
                             } catch (e) {
                                 console.log(e);
@@ -466,13 +544,19 @@
                 csock.on("data", function (chunk) {
                     if (csock.ws != null && csock.ws.connected == true) {
                         try {
+                            //csock.pause();
                             if (csock.xdata != null) {
-                                console.log("Sending buffer to WS: " + chunk);
-                                csock.ws.send(csock.xdata, "binary");
+                                //console.log("Sending buffer to WS: " + chunk);
+                                csock.ws.send(csock.xdata);
                                 csock.xdata = null;
                             }
                             //console.log("Data from client: " + chunk);
-                            csock.ws.send(chunk, "binary");
+                            csock.ws.send(Buffer.from(chunk,'binary'), function(err) {
+                                if (err!=null) {
+                                    console.log(err);
+                                }
+                                //try { csock.resume()} catch (e) {console.log(e)}
+                            });
                         } catch (e) {
                             console.log(e);
                         }
@@ -487,17 +571,19 @@
                 });
 
                 csock.on("error", function (e) {
-                    console.log(e);
+                    //console.log(e);
                     csock.ws.csock = null;
                 });
 
                 csock.on("end", function () {
+                    //console.log("Client Socket end");
                     if (csock.ws != null) {
                         csock.ws.close();
                     }
                 })
 
                 csock.on("close", function () {
+                    //console.log("Client Socket close");
                     if (csock.ws != null) {
                         csock.ws.close();
                     }
@@ -570,6 +656,18 @@
             };
             createPipeAndExec(exepath, args, [], tunnelcfg);
         }
+
+        function ctmClicked() {
+            var data = readForm();
+            var exepath = data['ctm'];
+            var args = data['ctm_args'].split(/\s+/);
+            var tunnelcfg = {
+                nodeid: data["nodeidhex"],
+                port: data['ctm_port']
+            };
+            createPipeAndExec(exepath, args, [], tunnelcfg);
+        }
+
 
         function useProxyChanged() {
             var up_ticked = document.getElementsByName("use_proxy")[0].checked;

@@ -7,12 +7,12 @@
         "icon": "favicon.png",
         "toolbar": true,
         "frame": true,
-        "width": 494,
-        "min_width": 494,
-        "max_width": 494,
-        "height": 300,
-        "min_height": 300,
-        "max_height": 300,
+        "width": 500,
+        "min_width": 500,
+        "max_width": 500,
+        "height": 400,
+        "min_height": 350,
+        "max_height": 400,
         "resizable": false
     }
 }
