@@ -58,7 +58,7 @@
                     </tr>
                     <tr>
                         <td class="frm_name">Proxy </td>
-                        <td><input type="input" name="proxy_host" size='30' disabled>&nbsp;<input type="input" name="proxy_port" size='5' disabled></td>
+                        <td><input type="input" name="proxy_host" size='30' disabled>&nbsp;<input type="input" name="proxy_port" size='5' disabled>&nbsp;<input type='button' value='Resolve' onClick='resolveProxyIP()'></button></td>
                     </tr>
                     <tr>
                         <td class="frm_name">SSH (Putty)</td>
@@ -228,6 +228,20 @@
             for (var i = 0; i < 10; i++) { try { QV('panel' + i, i == number); } catch (e) { } }
         }
 
+        function resolveProxyIP()
+        {
+            var proxy_host = document.getElementsByName("proxy_host")[0].value;
+            var dns = require('dns');
+            dns.lookup(proxy_host, function(err, addr, fam){
+                if (!err) {
+                    console.log('fam: '+fam+'addr: '+addr);
+                    document.getElementsByName("proxy_host")[0].setAttribute('value', addr);
+                } else {
+                    console.log('err: '+err);
+                }
+            })
+        }
+
         function readForm() {
             var data = {};
             data["mesh_url"] = document.getElementsByName("mesh_url")[0].value;
@@ -286,6 +300,13 @@
                 var HttpProxyAgent = require('https-proxy-agent');
                 proxyagent = new HttpProxyAgent("http://" + data["proxy_host"] + ":" + data["proxy_port"]);
             } else if (data["use_proxy"] && data["proxy_type"] == "socks") {
+                //socks proxy only accept IP, if it is not IP, it must be resolved first
+                var ip = require('ip');
+                if (!ip.isV4Format(data['proxy_host']) && !ip.isV6Format(data['proxy_host'])) {
+                    alert("Please resolve socks proxy host at the configuration and save");
+                    setPanel(1);
+                    return;
+                }
                 // sock agent init
                 var SocksProxyAgent = require('socks-proxy-agent');
                 proxyagent = new SocksProxyAgent('socks5://' + data['proxy_host'] + ':' + data['proxy_port'], true);
