@@ -43,7 +43,7 @@
         <br />
     </div>
 
-    <div id="panel3" style="height:280px;display:none;background-color:white;">
+    <div id="panel3" style="height:300px;display:none;background-color:white;">
         <form id=main_form>
             <table style="padding-left:5px;width:100%">
                 <tbody>
@@ -284,11 +284,11 @@
             var proxyagent = null;
             if (data["use_proxy"] && data["proxy_type"] == "http") {
                 var HttpProxyAgent = require('https-proxy-agent');
-                proxyAgent = new HttpProxyAgent("http://" + data["proxy_host"] + ":" + data["proxy_port"]);
+                proxyagent = new HttpProxyAgent("http://" + data["proxy_host"] + ":" + data["proxy_port"]);
             } else if (data["use_proxy"] && data["proxy_type"] == "socks") {
                 // sock agent init
                 var SocksProxyAgent = require('socks-proxy-agent');
-                proxyagent = new SocksProxyAgent('socks://' + data['proxy_host'] + ':' + data['proxy_port'], true);
+                proxyagent = new SocksProxyAgent('socks5://' + data['proxy_host'] + ':' + data['proxy_port'], true);
             }
 
 
@@ -324,6 +324,7 @@
                     var ws_options = JSON.parse(JSON.stringify(tls_options));
                     ws_options.headers = ws_headers;
                     ws_options.agent = proxyagent;
+                    var WebSocket = require('ws');
                     var ws = new WebSocket('wss://' + options.hostname + ":" + options.port + "/control.ashx", [], ws_options);
                     ws.on('open', function () {
                         //console.log("WS open");
@@ -374,7 +375,7 @@
 
                 }
                 res.on("data", function (chunk) {
-                    //console.log(chunk.toString());
+                    console.log(chunk.toString());
                 });
             });
             req.write(auth_postdata);
@@ -457,7 +458,7 @@
             var proxyagent = null;
             if (frm_data["use_proxy"] && frm_data["proxy_type"] == "http") {
                 var HttpProxyAgent = require('https-proxy-agent');
-                proxyAgent = new HttpProxyAgent("http://" + frm_data["proxy_host"] + ":" + frm_data["proxy_port"]);
+                proxyagent = new HttpProxyAgent("http://" + frm_data["proxy_host"] + ":" + frm_data["proxy_port"]);
             } else if (frm_data["use_proxy"] && frm_data["proxy_type"] == "socks") {
                 // sock agent init
                 var SocksProxyAgent = require('socks-proxy-agent');

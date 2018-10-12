@@ -3,16 +3,22 @@
     "main": "index.html",
     "version": "0.0.1a",
     "description": "MeshCentral 2 Routing Tool",
-    "window" : {
+    "window": {
         "icon": "favicon.png",
         "toolbar": true,
         "frame": true,
         "width": 500,
         "min_width": 500,
         "max_width": 500,
-        "height": 400,
-        "min_height": 350,
-        "max_height": 400,
+        "height": 450,
+        "min_height": 400,
+        "max_height": 450,
         "resizable": false
+    },
+    "dependencies": {
+        "https-proxy-agent": "^2.2.1",
+        "request": "^2.88.0",
+        "socks-proxy-agent": "^4.0.1",
+        "ws": "^6.1.0"
     }
 }
