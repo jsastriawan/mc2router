@@ -185,7 +185,10 @@
 
         function performLogin() {
             setPanel(2);
-            loadMeshes();
+            // just resolve proxy IP address on th fly, socks-proxy-agent doesn't understand FQDN proxy address
+            resolveProxyIP( function() {
+                loadMeshes();
+            })
         }
 
         function loadConfig() {
@@ -228,17 +231,18 @@
             for (var i = 0; i < 10; i++) { try { QV('panel' + i, i == number); } catch (e) { } }
         }
 
-        function resolveProxyIP()
+        function resolveProxyIP(cb)
         {
             var proxy_host = document.getElementsByName("proxy_host")[0].value;
             var dns = require('dns');
             dns.lookup(proxy_host, function(err, addr, fam){
                 if (!err) {
-                    console.log('fam: '+fam+'addr: '+addr);
+                    console.log('Resolved proxy IP: '+ addr);
                     document.getElementsByName("proxy_host")[0].setAttribute('value', addr);
                 } else {
-                    console.log('err: '+err);
+                    console.log('Resolve proxy error: '+err);
                 }
+                if (cb) { cb() };
             })
         }
 
