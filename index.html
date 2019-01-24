@@ -145,7 +145,7 @@
         var fs = require("fs");
         var request = require('request');
         var constants = require('constants');
-        var tls_options = { rejectUnauthorized: false, strictSSL: false, secureOptions: constants.SSL_OP_NO_TLSv1_2 };
+        var tls_options = { rejectUnauthorized: false, strictSSL: false, secureOptions: constants.SSL_OP_NO_TLSv1_0 };
         var specialRequest = request.defaults(tls_options);
         var net = require('net');
         var spawn = require('child_process');
@@ -155,7 +155,6 @@
         var https = require('https');
         var nodes = {};
         
-
         function start() {
             var nw_menubar = new nw.Menu({ type: "menubar" });
             var fl_menu = new nw.Menu();
