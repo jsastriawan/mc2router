@@ -145,7 +145,7 @@
         var fs = require("fs");
         var request = require('request');
         var constants = require('constants');
-        var tls_options = { rejectUnauthorized: false, strictSSL: false, secureOptions: constants.SSL_OP_NO_TLSv1_0 };
+        var tls_options = { rejectUnauthorized: false, strictSSL: false, secureOptions: constants.SSL_OP_NO_SSLv2 | constants.SSL_OP_NO_SSLv3 | constants.SSL_OP_NO_TLSv1 };
         var specialRequest = request.defaults(tls_options);
         var net = require('net');
         var spawn = require('child_process');
