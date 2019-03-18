@@ -624,8 +624,8 @@
                     args[idx] = lport;
                 } else {
                     for (var i = 0; i < args.length; i++) {
-                        if (args[i].endsWith(":lport")) {
-                            var newstr = args[i].replace(":lport", ":" + lport);
+                        if (args[i].endsWith("lport")) {
+                            var newstr = args[i].replace("lport", "" + lport);
                             args[i] = newstr;
                             //console.log("Replace lport: "+newstr);
                         }
