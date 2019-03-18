@@ -33,7 +33,7 @@ npm install ws request socksv5 https-proxy-agent
 ```
 
 ## Custom application tunnelling
-Three new JSON entry are added to accomodate addition of user defined custom application tunnelling.
+Three new JSON entries are added to accomodate addition of user defined custom application tunnelling.
 
 _ctm_: The path of the binary
 
