@@ -125,6 +125,9 @@
                             </td>
                         </tr>
                         <tr>
+                            <td colspan=4><input type="checkbox" id="cb_relay"><label for="cb_relay">Relay to other device</label></td>
+                        </tr>
+                        <tr>
                             <td colspan="2">
                                 <input type="button" value="Reload" onclick="loadMeshes()">&nbsp;
                                 <input type="button" value="SSH" onclick="sshClicked()">&nbsp;
@@ -462,6 +465,27 @@
         }
 
         function createPipeAndExec(exepath, args, opts, tunnelcfg) {
+            if (Q("cb_relay").checked) {
+                var thost = window.prompt("Please destination IP:", "");
+                if (thost == "" || net.isIP(thost)==0) {
+                    window.alert("Invalid IP, action cancelled");
+                    return;
+                } else {
+                    if (net.isIP(thost)>0) {
+                        var ntunnelcfg = tunnelcfg;
+                        ntunnelcfg["tcpaddr"]=thost;
+                        createPipeAndExecEx(exepath, args, opts, ntunnelcfg)
+                    } else {
+                        window.alert("Invalid IP, assume 127.0.0.1");
+                        createPipeAndExecEx(exepath, args, opts, tunnelcfg)
+                    }
+                }
+            } else {
+                createPipeAndExecEx(exepath, args, opts, tunnelcfg)
+            }
+        }
+
+        function createPipeAndExecEx(exepath, args, opts, tunnelcfg) {
             // sanity check
             if (!fs.existsSync(exepath)) {
                 alert("File "+exepath+" is not found.");
@@ -512,6 +536,9 @@
                 wsurl += "&pass=" + cred.password;
                 wsurl += "&nodeid=" + tunnelcfg["nodeid"];
                 wsurl += "&tcpport=" + tunnelcfg["port"];
+                if (tunnelcfg["tcpaddr"]) {
+                    wsurl += "&tcpaddr=" + tunnelcfg["tcpaddr"];
+                }
 
                 var ws = new WebSocket(wsurl, [], ws_options);
                 // wiring up
