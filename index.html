@@ -110,7 +110,7 @@
                     <tbody>
                         <tr>
                             <td class="frm_name">Mesh</td>
-                            <td><select id='select_mesh' onchange="meshChanged(this)"></select></td>
+                            <td><select id='select_mesh' onchange="meshChanged(this)"></select>&nbsp;<input type="button" value="Reload" onclick="loadMeshes()">&nbsp;<input type="button" value="Logout" onclick="nw.Window.get().reloadIgnoringCache()"></td>
                         </tr>
                         <tr>
                             <td class="frm_name">Node</td>
@@ -129,7 +129,7 @@
                         </tr>
                         <tr>
                             <td colspan="2">
-                                <input type="button" value="Reload" onclick="loadMeshes()">&nbsp;
+                                <input type="button" value="Term-Agent" onclick="termClicked()">&nbsp;
                                 <input type="button" value="SSH" onclick="sshClicked()">&nbsp;
                                 <input type="button" value="SFTP" onclick="sftpClicked()">&nbsp;
                                 <input type="button" value="Remote Desktop" onclick="rdpClicked()">
@@ -239,7 +239,7 @@
             var dns = require('dns');
             dns.lookup(proxy_host, function(err, addr, fam){
                 if (!err) {
-                    console.log('Resolved proxy IP: '+ addr);
+                    //console.log('Resolved proxy IP: '+ addr);
                     document.getElementsByName("proxy_host")[0].setAttribute('value', addr);
                 } else {
                     console.log('Resolve proxy error: '+err);
@@ -402,7 +402,7 @@
 
                 }
                 res.on("data", function (chunk) {
-                    console.log(chunk.toString());
+                    //console.log(chunk.toString());
                 });
             });
             req.write(auth_postdata);
@@ -534,17 +534,31 @@
                 var wsurl = "wss://" + url.hostname + ":" + port + "/meshrelay.ashx?";
                 wsurl += "user=" + cred.username;
                 wsurl += "&pass=" + cred.password;
-                wsurl += "&nodeid=" + tunnelcfg["nodeid"];
-                wsurl += "&tcpport=" + tunnelcfg["port"];
+
+                // use either id or nodeid
+                if (tunnelcfg["id"]) {
+                    wsurl += "&id=" + tunnelcfg["id"];
+                } else if (tunnelcfg["nodeid"]) {
+                    wsurl += "&nodeid=" + tunnelcfg["nodeid"];
+                }
+                if (tunnelcfg["port"]) {
+                    wsurl += "&tcpport=" + tunnelcfg["port"];
+                }
                 if (tunnelcfg["tcpaddr"]) {
                     wsurl += "&tcpaddr=" + tunnelcfg["tcpaddr"];
                 }
+                //console.log("WSURL: "+wsurl);
 
                 var ws = new WebSocket(wsurl, [], ws_options);
                 // wiring up
                 ws.csock = csock;
                 ws.connected = false;
                 csock.ws = ws;
+
+                if (tunnelcfg["protocol"]) {
+                    ws.tprotocol = tunnelcfg["protocol"];
+                    //console.log("Set tprotocol: "+ws.tprotocol);
+                }
 
                 ws.on('open', function () {
                     //console.log("WS open");
@@ -565,7 +579,7 @@
                 });
 
                 ws.on('message', function (msg) {
-                    //console.log('WS message: ' + new Date().toString() + '\n' + msg);
+                    //console.log('WS message: ' + msg);
                     if (ws.connected && ws.csock != null) {
                         //console.log("Data from WS: " + Buffer.byteLength(msg));
                         try {
@@ -579,6 +593,11 @@
                         }
                     } else if (msg.toString() == 'c') {
                         //console.log("Receive c");
+                        // send tunneling protocol if set.
+                        if (ws.tprotocol) {                            
+                            ws.send(ws.tprotocol);
+                            //console.log("Send "+ws.tprotocol);
+                        }
                         ws.connected = true;
                         // send pending data
                         if (ws.csock.xdata != null) {
@@ -613,7 +632,7 @@
                             console.log(e);
                         }
                     } else {
-                        //console.log("Put data into buffer");
+                        //console.log("Put data into buffer: "+chunk);
                         if (csock.xdata == null) {
                             csock.xdata = chunk;
                         } else {
@@ -665,9 +684,120 @@
                         //console.log("Shutting down TCPServer");
                         tcpserver.close();
                     } catch (e) {
-                        console.log("Error: " + e);
+                        //console.log("Error: " + e);
                     }
                 });
+            });
+        }
+
+        function sendControlCommand(cmd, wait, cb) {
+            var data = readForm();
+            var proxyagent = null;
+            if (data["use_proxy"] && data["proxy_type"] == "http") {
+                var HttpProxyAgent = require('https-proxy-agent');
+                proxyagent = new HttpProxyAgent("http://" + data["proxy_host"] + ":" + data["proxy_port"]);
+            } else if (data["use_proxy"] && data["proxy_type"] == "socks") {
+                //Not validating IP anymore assuming login already handle it
+                // sock agent init
+                var SocksProxyAgent = require('socks-proxy-agent');
+                proxyagent = new SocksProxyAgent('socks5://' + data['proxy_host'] + ':' + data['proxy_port'], true);
+            }
+
+            var cred = { username: data["mesh_username"], password: data["mesh_password"] };
+            var url = Url.parse(data["mesh_url"]);
+            // prepare request options
+            var auth_postdata = querystring.stringify(cred);
+            var options = JSON.parse(JSON.stringify(tls_options));
+            options.hostname = url.hostname;
+            options.method = "POST";
+            options.port = (url.port == null) ? "443" : url.port;
+            options.path = "/login";
+            options.timeout = 10000;
+            options.followRedirect = true;
+            options.maxRedirects = 10;
+            options.headers = {
+                'Content-type': 'application/x-www-form-urlencoded',
+                'Content-length': Buffer.byteLength(auth_postdata)
+            }
+
+            if (proxyagent != null) {
+                options.agent = proxyagent;
+            }
+
+            //console.log(JSON.stringify(options));
+            // authenticate
+            var req = https.request(options, function (res) {
+                if (res.statusCode == 302) {
+                    var ws_headers = {
+                        'Cookie': res.headers['set-cookie']
+                    };
+
+                    var ws_options = JSON.parse(JSON.stringify(tls_options));
+                    ws_options.headers = ws_headers;
+                    ws_options.agent = proxyagent;
+                    var WebSocket = require('ws');
+                    var ws = new WebSocket('wss://' + options.hostname + ":" + options.port + "/control.ashx", [], ws_options);
+                    ws.on('open', function () {
+                        //console.log("CMD WS open");
+                        ws.send(JSON.stringify(cmd));
+                        //console.log("CMD WS send: "+JSON.stringify(cmd));
+                        if (!wait) {
+                            ws.close();                                                        
+                        }                        
+                    });
+
+                    ws.on('close', function (code, reason) {
+                        //console.log('CMD WS close:' + code + ":" + reason);                        
+                    });
+
+                    ws.on('error', function (er) {
+                        //console.log('CMD WS error:' + er);
+                    });
+
+                    ws.on('message', function (data) {
+                        var msg = null;
+                        try {
+                            msg = JSON.parse(data);
+                        } catch (e) {
+                            msg = data;
+                        }
+                        ws.close();// just close it
+                        if (cb)  {
+                            //console.log("CMD WS call cb");
+                            cb(msg); //return the resulting message
+                            cb=null;
+                        }
+                    });
+
+                }
+                res.on("data", function (chunk) {
+                    //console.log(chunk.toString());
+                });
+            });
+            req.write(auth_postdata);
+            req.end();            
+        }
+
+        function termClicked() {
+            var data = readForm();
+            var exepath = data['ssh'];
+            var args = ['-raw','127.0.0.1','-P','lport'];
+            var tunnelcfg = {
+                nodeid: data["nodeidhex"],
+                id: Math.random().toString(36).substring(2), // random tunnel id
+                protocol: 1, // terminal
+                sendc: true
+            };
+            // send message via control.ashx to create tunnel with certain id
+            var cmd = {
+                action: "msg",
+                type: "tunnel",
+                nodeid: data["nodeidhex"],
+                value: "*/meshrelay.ashx?id="+tunnelcfg["id"]
+            }
+
+            sendControlCommand(cmd, false, function (x) {
+                createPipeAndExec(exepath, args, [], tunnelcfg);
             });
         }
 
