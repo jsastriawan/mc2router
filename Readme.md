@@ -3,7 +3,7 @@
 A node webkit-based application to ease certain application tunneling via [Meshcentral 2](https://github.com/Ylianst/MeshCentral). 
 ## Dependencies
 ```
-npm install ws request socksv5 https-proxy-agent
+npm install
 ```
 
 ## Configuration
