@@ -11,14 +11,15 @@ npm install
 ```javascript
 {
     "mesh_url": "https://alt.meshcentral.com/",    
-	"mesh_username": "usename",
-	"mesh_password": "password",
+	"mesh_username": "username",
+	"mesh_password": "password in clear text",
+	"mesh_passwordb64": "password encoded in base64",
 	"ssh": "C:\\Program Files (x86)\\PuTTY\\putty.exe",
 	"sftp": "C:\\Program Files\\FileZilla FTP Client\\filezilla.exe",
 	"rdp": "C:\\Windows\\System32\\mstsc.exe",
 	"ctm": "C:\\Program Files (x86)\\PuTTY\\putty.exe",
 	"ctm_lbl": "Secret tunnel",
-	"ctm_args": "-ssh 127.0.0.1 -P lport"
+	"ctm_args": "-ssh 127.0.0.1 -P lport",
 	"use_proxy": false,
 	"proxy_type": "socks",
 	"proxy_host": "proxy.company.com",
@@ -27,6 +28,9 @@ npm install
 }
 
 ```
+
+Note: If you save *mesh_password* in clear text, it will be saved as *mesh_passwordb64* and *mesh_password* entry will be removed.
+
 ## How to run
 ```
 > nw

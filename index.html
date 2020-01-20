@@ -23,7 +23,8 @@
             </tr>
             <tr>
                 <td class="frm_name">Password</td>
-                <td>&nbsp;<input id="ServerPass" name="mesh_password" type="password" maxlength=256 style="width:250px"></td>
+                <td>&nbsp;<input id="ServerPass" name="mesh_password" type="password" maxlength=256 style="width:250px">
+                <br/><input id="savepass" name="save_password" type='checkbox'>Save password in configuration</td>
             </tr>
             <tr>
                 <td></td>
@@ -188,19 +189,37 @@
         function performLogin() {
             setPanel(2);
             // just resolve proxy IP address on th fly, socks-proxy-agent doesn't understand FQDN proxy address
-            resolveProxyIP( function() {
+            if (document.getElementsByName("use_proxy")[0].checked == true) {
+                resolveProxyIP(function () {
+                    loadMeshes();
+                })
+            } else {
                 loadMeshes();
-            })
+            }
         }
 
         function loadConfig() {
             try {
                 var cfg = JSON.parse(fs.readFileSync("config.json"));
+                
+                if (typeof cfg.mesh_password != undefined) {
+                    cfg.mesh_password = "";                    
+                } 
+                // use base 64 string instead if defined
+                if (typeof cfg.mesh_passwordb64 != undefined) { 
+                    try {
+                        var dstr = Buffer.from(cfg.mesh_passwordb64, 'base64').toString();
+                        cfg.mesh_password = dstr;
+                    } catch (e) { 
+                        cfg.mesh_password = "";
+                    }
+                }
                 var frm = document.getElementById("main_form");
                 if (frm != null) {
                     document.getElementsByName("mesh_url")[0].setAttribute('value', cfg.mesh_url);
-                    document.getElementsByName("mesh_username")[0].setAttribute('value', cfg.mesh_username);
+                    document.getElementsByName("mesh_username")[0].setAttribute('value', cfg.mesh_username);                    
                     document.getElementsByName("mesh_password")[0].setAttribute('value', cfg.mesh_password);
+                    document.getElementsByName("save_password")[0].checked = cfg.save_password;
                     document.getElementsByName("use_proxy")[0].checked = cfg.use_proxy;
                     var rb = document.getElementsByName("proxy_type");
                     for (var i = 0; i < rb.length; i++) { if (rb[i].value == cfg.proxy_type) { rb[i].checked = true; } }
@@ -226,6 +245,17 @@
             var cfg = readForm();
             delete cfg["meshidhex"];
             delete cfg["nodeidhex"];
+            if (cfg["save_password"] == true) {
+                // encode password with base64
+                try {
+                    var bstr = Buffer.from(cfg["mesh_password"]).toString('base64');
+                    cfg["mesh_passwordb64"] = bstr;
+                    delete cfg["mesh_password"];// do not save clear text password
+                } catch (e) { }
+            } else {
+                delete cfg["mesh_password"];// do not save clear text password
+                delete cfg["mesh_passwordb64"];// do not save base64 password
+            }
             fs.writeFileSync('config.json', JSON.stringify(cfg, null, '\t'));
         }
 
@@ -253,6 +283,7 @@
             data["mesh_url"] = document.getElementsByName("mesh_url")[0].value;
             data["mesh_username"] = document.getElementsByName("mesh_username")[0].value;
             data["mesh_password"] = document.getElementsByName("mesh_password")[0].value;
+            data["save_password"] = document.getElementsByName("save_password")[0].checked
             data["ssh"] = document.getElementsByName("ssh")[0].value;
             data["sftp"] = document.getElementsByName("sftp")[0].value;
             data['rdp'] = document.getElementsByName("rdp")[0].value;
