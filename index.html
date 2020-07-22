@@ -668,7 +668,22 @@
                         ws.connected = true;
                         // send pending data
                         if (ws.csock.xdata != null) {
-                            //console.log("Sending buffer to WS: " + ws.csock.xdata);
+                            // Telnet terminal negotiation detection and response to force local echo and line mode off
+                            if (ws.tprotocol && ws.tprotocol==1 && (ws.csock.xdata.length % 3 == 0)) {
+                                var cnt = ws.csock.xdata.length/3;
+                                // see: 
+                                // - http://www.tcpipguide.com/free/t_TelnetProtocolCommands-3.htm
+                                // - http://www.iana.org/assignments/telnet-options/telnet-options.xhtml
+                                // will echo, do suppress ahead, will suppress ahead
+                                var tbuf = Buffer.from([0xff,0xfb,0x01,0xff,0xfd,0x03,0xff,0xfb,0x03]);                                
+                                // console.log("Sending buffer to csock: " + tbuf.toString('hex'));
+                                try {
+                                    csock.write(tbuf);
+                                } catch (e) {
+                                    console.log(e);
+                                }
+                            }
+                            //console.log("Sending buffer to WS: " + ws.csock.xdata.toString('hex'));                            
                             try {
                                 ws.send(Buffer.from(ws.csock.xdata,"binary"));
                                 ws.csock.xdata = null;
@@ -878,7 +893,7 @@
         function termClicked() {
             var data = readForm();
             var exepath = data['ssh'];
-            var args = ['-raw','127.0.0.1','-P','lport'];
+            var args = ['-telnet','127.0.0.1','-P','lport'];
             var tunnelcfg = {
                 nodeid: data["nodeidhex"],
                 id: Math.random().toString(36).substring(2), // random tunnel id
