@@ -158,6 +158,7 @@
         var querystring = require("querystring");
         var https = require('https');
         var nodes = {};
+        var fnodes = {};
         
         function start() {
             var nw_menubar = new nw.Menu({ type: "menubar" });
@@ -408,6 +409,14 @@
                         //console.log('WS message: ' + new Date().toString() + '\n' + JSON.stringify(msg,null,"   "));
                         if (msg.action == "nodes") {
                             nodes = JSON.parse(JSON.stringify(msg.nodes));
+                            // build nodes flat list
+                            fnodes = {};
+                            Object.values(nodes).forEach(m =>{
+                                m.forEach(el => {
+                                    fnodes[el._id]=el;
+                                });
+                            });
+                            //console.log(JSON.stringify(fnodes,null,3));
                             //console.log(JSON.stringify(nodes));
                             var jstr = { "action": "meshes" };
                             ws.send(JSON.stringify(jstr));
@@ -482,7 +491,9 @@
                 for (var i = 0; i < node_list.length; i++) {
                     var str = "<div style='vertical-align:middle;display:block;' id='"+(node_list[i]._id).replace(/\/+/,'')+"'>";
                     str += "<input type='radio' name='select_node_radio' value='"+node_list[i]._id+"' style='vertical-align: middle;'>&nbsp;";
-                    if (!node_list[i].icon) {node_list[i].icon=1;}
+                    if (!node_list[i].icon || node_list[i].icon>6 ) {
+                        node_list[i].icon=1;
+                    }
                     if (node_list[i].conn != null && node_list[i].conn != 0) {
                         str += "<img class='mini_icon_on' src='icons200-" + node_list[i].icon + "-1.png'>&nbsp;";
                     } else {
@@ -493,6 +504,12 @@
                     QA("select_node_div",str);
                 }                
             }
+        }
+
+        function findAgentType(nodeid) {
+            Object.keys(nodes).forEach(function(key){
+
+            })
         }
 
         function createPipeAndExec(exepath, args, opts, tunnelcfg) {
@@ -566,10 +583,10 @@
                 wsurl += "user=" + cred.username;
                 wsurl += "&pass=" + cred.password;
 
-                // use either id or nodeid
                 if (tunnelcfg["id"]) {
                     wsurl += "&id=" + tunnelcfg["id"];
-                } else if (tunnelcfg["nodeid"]) {
+                }
+                if (tunnelcfg["nodeid"]) {
                     wsurl += "&nodeid=" + tunnelcfg["nodeid"];
                 }
                 if (tunnelcfg["port"]) {
@@ -578,6 +595,21 @@
                 if (tunnelcfg["tcpaddr"]) {
                     wsurl += "&tcpaddr=" + tunnelcfg["tcpaddr"];
                 }
+                if (tunnelcfg['protocol']) {
+                    wsurl += "&p=" +tunnelcfg['protocol'];
+                }
+                if (tunnelcfg['browser']) {
+                    wsurl += "&browser=" +tunnelcfg['browser'];
+                }
+                
+                if (tunnelcfg["auth"]) {
+                    wsurl+="&auth="+ tunnelcfg["auth"];
+                }
+
+                if (tunnelcfg["rauth"]) {
+                    wsurl+="&rauth="+ tunnelcfg["rauth"];
+                }
+
                 //console.log("WSURL: "+wsurl);
 
                 var ws = new WebSocket(wsurl, [], ws_options);
@@ -587,12 +619,16 @@
                 csock.ws = ws;
 
                 if (tunnelcfg["protocol"]) {
+                    // handle terminal
                     ws.tprotocol = tunnelcfg["protocol"];
-                    //console.log("Set tprotocol: "+ws.tprotocol);
+                    if (tunnelcfg["protocol"]==1) {
+                        var currentnode = fnodes[tunnelcfg["nodeid"]];
+                        csock.agenttype = ([1, 2, 3, 4, 21, 22].indexOf(currentnode.agent.id) >= 0) ? "windows" : "linux";                        
+                    }
                 }
 
                 ws.on('open', function () {
-                    //console.log("WS open");
+                    //console.log("WS open");                    
                 });
 
                 ws.on('close', function (code, reason) {
@@ -626,8 +662,8 @@
                         //console.log("Receive c");
                         // send tunneling protocol if set.
                         if (ws.tprotocol) {                            
-                            ws.send(ws.tprotocol);
                             //console.log("Send "+ws.tprotocol);
+                            ws.send(ws.tprotocol);                            
                         }
                         ws.connected = true;
                         // send pending data
@@ -649,11 +685,19 @@
                             //csock.pause();
                             if (csock.xdata != null) {
                                 //console.log("Sending buffer to WS: " + chunk);
-                                csock.ws.send(csock.xdata);
+                                if (csock.ws.tprotocol && csock.ws.tprotocol==1 && csock.agenttype && csock.agenttype=="linux") {
+                                    csock.ws.send(csock.xdata.replace(/\r\n/g,'\r'));
+                                } else {
+                                    csock.ws.send(csock.xdata);
+                                }
                                 csock.xdata = null;
                             }
-                            //console.log("Data from client: " + chunk);
-                            csock.ws.send(Buffer.from(chunk,'binary'), function(err) {
+                            var nchunk = chunk;
+                            if (csock.ws.tprotocol && csock.ws.tprotocol==1 && csock.agenttype && csock.agenttype=="linux") {
+                                nchunk = chunk.toString().replace(/\r\n/g,'\r');
+                            }
+                            //console.log("Data from client: " + nchunk.toString('hex'));                            
+                            csock.ws.send(Buffer.from(nchunk,'binary'), function(err) {
                                 if (err!=null) {
                                     console.log(err);
                                 }
@@ -721,7 +765,7 @@
             });
         }
 
-        function sendControlCommand(cmd, wait, cb) {
+        function sendControlCommand(cmd, waitfor, cb) {
             var data = readForm();
             var proxyagent = null;
             if (data["use_proxy"] && data["proxy_type"] == "http") {
@@ -768,11 +812,18 @@
                     ws_options.agent = proxyagent;
                     var WebSocket = require('ws');
                     var ws = new WebSocket('wss://' + options.hostname + ":" + options.port + "/control.ashx", [], ws_options);
+                    var waittimeout = false;
+                    var waittimer;                    
                     ws.on('open', function () {
                         //console.log("CMD WS open");
                         ws.send(JSON.stringify(cmd));
                         //console.log("CMD WS send: "+JSON.stringify(cmd));
-                        if (!wait) {
+                        // wait for 3 seconds if waitfor is set
+                        if (waitfor!=null) { 
+                            waittimer=setTimeout(function(){
+                                waittimeout=true;
+                            },3000);
+                        } else {
                             ws.close();                                                        
                         }                        
                     });
@@ -785,18 +836,33 @@
                         //console.log('CMD WS error:' + er);
                     });
 
-                    ws.on('message', function (data) {
+                    ws.on('message', function (data) {                        
                         var msg = null;
                         try {
                             msg = JSON.parse(data);
                         } catch (e) {
                             msg = data;
                         }
-                        ws.close();// just close it
-                        if (cb)  {
-                            //console.log("CMD WS call cb");
-                            cb(msg); //return the resulting message
-                            cb=null;
+                        if (waitfor==null) {
+                            ws.close();// just close it
+                            if (cb)  {
+                                cb(msg); //return the last message
+                                cb=null;
+                            }
+                        } else {
+                            if (msg.action==waitfor) {
+                                clearTimeout(waittimer);
+                                ws.close();// just close it
+                                if (cb)  {
+                                    cb(msg); //return the resulting message
+                                    cb=null;
+                                }   
+                            } else if (waittimeout==true) {
+                                if (cb)  {
+                                    cb(null); //return the resulting message
+                                    cb=null;
+                                }
+                            }
                         }
                     });
 
@@ -816,19 +882,31 @@
             var tunnelcfg = {
                 nodeid: data["nodeidhex"],
                 id: Math.random().toString(36).substring(2), // random tunnel id
-                protocol: 1, // terminal
-                sendc: true
+                protocol: 1 // terminal
             };
             // send message via control.ashx to create tunnel with certain id
             var cmd = {
                 action: "msg",
                 type: "tunnel",
                 nodeid: data["nodeidhex"],
-                value: "*/meshrelay.ashx?id="+tunnelcfg["id"]
+                usage: tunnelcfg["protocol"],
+                value: "*/meshrelay.ashx?p=1&nodeid="+tunnelcfg["nodeid"]+"&id="+tunnelcfg['id']
             }
 
-            sendControlCommand(cmd, false, function (x) {
-                createPipeAndExec(exepath, args, [], tunnelcfg);
+            var authcookiecmd = {
+                action: "authcookie"
+            }
+
+            sendControlCommand(authcookiecmd, "authcookie", function (c) {
+                if (c!=null) {
+                    //console.log("Authcookie:"+JSON.stringify(c));
+                    cmd.value = cmd.value+"&rauth="+c.rcookie;
+                    tunnelcfg["auth"]= c.cookie;
+                    tunnelcfg["rauth"]=c.rcookie;
+                }
+                sendControlCommand(cmd, null, function (x) {
+                    createPipeAndExec(exepath, args, [], tunnelcfg);
+                });
             });
         }
 
