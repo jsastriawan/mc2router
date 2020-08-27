@@ -9,9 +9,9 @@
     <datalist id="ServerUrls">
         <option value="https://meshcentral.com/">
     </datalist>
-    <div id="panel0" style="height:250px">
+    <div id="panel0" style="height:450px">
     </div>
-    <div id="panel1" style="height:250px;display:none;background-color:white;">
+    <div id="panel1" style="height:450px;display:none;background-color:white;">
         <table style="padding-top:30px;padding-left:70px">
             <tr>
                 <td class="frm_name">Server</td>
@@ -33,7 +33,7 @@
         </table>
         <br />
     </div>
-    <div id="panel2" style="height:250px;display:none;background-color:white;">
+    <div id="panel2" style="height:450px;display:none;background-color:white;">
         <table style="padding-top:70px;width:100%">
             <tbody>
                 <tr>
@@ -106,7 +106,7 @@
             </table>
         </form>
         </div>
-        <div id="panel4" style="height:250px;display:none;background-color:white;">
+        <div id="panel4" style="height:450px;display:none;background-color:white;">
                 <table style="padding-left:30px;padding-top:30px;width:100%">
                     <tbody>
                         <tr>
@@ -137,6 +137,21 @@
                                 <input type="button" id="ctm_btn" name="ctm_btn" value="Custom Tool" onclick="ctmClicked()">
                             </td>
                         </tr>
+                        <tr><td colspan="4">&nbsp;</td></tr>
+                        <tr><td colspan="4" style='font-weight: bold; text-align: center;'>Custom Application Tunneling</td></tr>                        
+                        <tr>
+                            <td>
+                            </td>
+                            <td>
+                            <div id="select_cmd_div" style="width:350px;height:100px; overflow-y:scroll">
+                            </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2">
+                                <input type="button" value="Connect" onclick="cmdClicked()">&nbsp;
+                            </td>
+                        </tr>
                         </tbody>
                 </table>
                 <br />
@@ -159,6 +174,7 @@
         var https = require('https');
         var nodes = {};
         var fnodes = {};
+        var cmds = {};
         
         function start() {
             var nw_menubar = new nw.Menu({ type: "menubar" });
@@ -185,6 +201,7 @@
 
             setPanel(1);
             loadConfig();
+            loadCmds();
         }
 
         function performLogin() {
@@ -196,6 +213,32 @@
                 })
             } else {
                 loadMeshes();
+            }
+        }
+
+        function loadCmds() {
+            try {
+                var temp_obj = JSON.parse(fs.readFileSync("cmds.json"));
+                if (temp_obj!=null && temp_obj.cmds!=null && temp_obj.cmds.length!=null) {
+                    cmds = {};
+                    for (var j=0; j< temp_obj.cmds.length;j++) {
+                        var c = temp_obj.cmds[j];
+                        cmds[c.id]=c;
+                    }                    
+                }
+            } catch (e) {
+                console.log("Unable to load command list");
+            }
+            if (Object.keys(cmds).length > 0) {                
+                QH("select_cmd_div",""); //clear out list container
+                for (var idx in Object.keys(cmds)) {
+                    var cmd = Object.values(cmds)[idx];
+                    var str = "<div style='vertical-align:middle;display:block;' id='dcmd_"+cmd.id+"'>";
+                    str += "<input type='radio' name='select_cmd_radio' value='cmd_"+cmd.id+"' style='vertical-align: middle;'>&nbsp;";
+                    str += cmd.label+"<br/>";
+                    str +="</div>";
+                    QA("select_cmd_div",str);                    
+                }
             }
         }
 
@@ -970,6 +1013,25 @@
             var tunnelcfg = {
                 nodeid: data["nodeidhex"],
                 port: data['ctm_port']
+            };
+            createPipeAndExec(exepath, args, [], tunnelcfg);
+        }
+
+        function cmdClicked() {
+            var data = readForm();
+            var cmd_id = null;
+            if (document.querySelector('input[name="select_cmd_radio"]:checked')!=null) {
+                cmd_id = document.querySelector('input[name="select_cmd_radio"]:checked').value.substring(4);                
+            } else {
+                cmd_data["cmd_id"] = null;
+                alert("No Command is selected.");
+                return;
+            } 
+            var exepath = cmds[cmd_id].cmdexec;
+            var args = cmds[cmd_id].cmdargs.trim().split(/\s+/);
+            var tunnelcfg = {
+                nodeid: data["nodeidhex"],
+                port: cmds[cmd_id].cmdport
             };
             createPipeAndExec(exepath, args, [], tunnelcfg);
         }

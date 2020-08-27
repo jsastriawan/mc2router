@@ -53,9 +53,30 @@ ssh "-ssh 127.0.0.1 -P lport"
 
 ssms "-S localhost,lport -U username -P password -nosplash"
 
+For more custom application tunneling, new command list JSON is added to add multiple list of application tunneling configurations.
+
+```json
+{
+    "cmds" :
+    [ 
+        { "id": 1, "label": "VNC port 5901", "cmdexec": "C:\\Program Files\\TightVNC\\tvnviewer.exe", "cmdargs" : "127.0.0.1::lport","cmdport":"5901"},
+        { "id": 2, "label": "VNC port 5902", "cmdexec": "C:\\Program Files\\TightVNC\\tvnviewer.exe", "cmdargs" : "127.0.0.1::lport","cmdport":"5902"},
+        { "id": 3, "label": "SSH port 22", "cmdexec": "C:\\Program Files (x86)\\PuTTY\\putty.exe", "cmdargs" : "-ssh 127.0.0.1 -P lport","cmdport":"22"}
+    ]
+}
+```
+Each entry need to have:
+* label: This will be used as the title
+* cmdexec: The path to binary/script to execute
+* cmdargs: Commandline argument, please specify the target port of the application as string 'lport'
+* cmdport: Target port at the destination device
+
 ## Credit
 * Ylian St Hilaire
 * Piero Fioravanti
 * Shafin Jadavji
 * Rico Cantrell
 * Luca Levati
+
+## Todo
+* Add command list editor
