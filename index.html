@@ -120,7 +120,7 @@
                         <tr>
                             <td>
                             </td>
-                            <td>
+                            <td colspan="3">
                             <div id="select_node_div" style="width:350px;height:100px; overflow-y:scroll">
                             </div>
                             </td>
@@ -142,7 +142,7 @@
                         <tr>
                             <td>
                             </td>
-                            <td>
+                            <td colspan="3">
                             <div id="select_cmd_div" style="width:350px;height:100px; overflow-y:scroll">
                             </div>
                             </td>
@@ -233,8 +233,8 @@
                 QH("select_cmd_div",""); //clear out list container
                 for (var idx in Object.keys(cmds)) {
                     var cmd = Object.values(cmds)[idx];
-                    var str = "<div style='vertical-align:middle;display:block;' id='dcmd_"+cmd.id+"'>";
-                    str += "<input type='radio' name='select_cmd_radio' value='cmd_"+cmd.id+"' style='vertical-align: middle;'>&nbsp;";
+                    var str = "<div style='vertical-align:middle;display:block; height: 25px;' id='dcmd_"+cmd.id+"'>";
+                    str += "<input type='radio' name='select_cmd_radio' value='cmd_"+cmd.id+"' style='vertical-align: middle; margin-top: -1px;'>&nbsp;";
                     str += cmd.label+"<br/>";
                     str +="</div>";
                     QA("select_cmd_div",str);                    
@@ -532,8 +532,8 @@
             if (Object.keys(nodes).indexOf(meshidhex) >= 0) {
                 var node_list = Object.values(nodes)[Object.keys(nodes).indexOf(meshidhex)];
                 for (var i = 0; i < node_list.length; i++) {
-                    var str = "<div style='vertical-align:middle;display:block;' id='"+(node_list[i]._id).replace(/\/+/,'')+"'>";
-                    str += "<input type='radio' name='select_node_radio' value='"+node_list[i]._id+"' style='vertical-align: middle;'>&nbsp;";
+                    var str = "<div style='vertical-align:middle;display:block; height: 25px;' id='"+(node_list[i]._id).replace(/\/+/,'')+"'>";
+                    str += "<input type='radio' name='select_node_radio' value='"+node_list[i]._id+"' style='vertical-align: middle; margin-top: -1px;'>&nbsp;";
                     if (!node_list[i].icon || node_list[i].icon>6 ) {
                         node_list[i].icon=1;
                     }

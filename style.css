@@ -3,8 +3,8 @@ body {
     height: 100%;
     margin: 0px;
     padding: 0px;
-    font-family: 'Arial';
-    font-size: 10pt;
+    font-family: 'Verdana';
+    font-size: 11pt;
     background-color: white;
 }
 
@@ -17,6 +17,7 @@ div table {
     height: 60px;
     background-color: #036;
     color: white;
+    font-family: 'Verdana';
     font-size: 3em;
     padding: 5px;
     margin: 0px;
@@ -24,7 +25,7 @@ div table {
 .frm_name {
     font-weight: bold;
     font-size: 10pt;
-    font-family: 'Arial';
+    font-family: 'Verdana';
     vertical-align: text-top;
 }
 
@@ -39,4 +40,10 @@ div table {
     height: 20px;
     vertical-align: middle;
     filter: grayscale(100%);    
+}
+
+input {
+    border: solid gray 1px;
+    box-shadow: none;
+    border-radius: 2px;
 }
