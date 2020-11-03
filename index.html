@@ -175,6 +175,7 @@
         var nodes = {};
         var fnodes = {};
         var cmds = {};
+        var meshes = {};
         
         function start() {
             var nw_menubar = new nw.Menu({ type: "menubar" });
@@ -452,9 +453,14 @@
                         //console.log('WS message: ' + new Date().toString() + '\n' + JSON.stringify(msg,null,"   "));
                         if (msg.action == "nodes") {
                             nodes = JSON.parse(JSON.stringify(msg.nodes));
-                            // build nodes flat list
-                            fnodes = {};
-                            Object.values(nodes).forEach(m =>{
+                            // build meshes list with unknown name = set as individual devices
+                            meshes = [];
+                            Object.keys(nodes).forEach(m =>{       
+                                meshes[m] = { _id: m, name: "Individual Devices"};
+                            });
+                            // build nodes flat list                            
+                            fnodes = [];                            
+                            Object.values(nodes).forEach(m =>{                                
                                 m.forEach(el => {
                                     fnodes[el._id]=el;
                                 });
@@ -465,15 +471,20 @@
                             ws.send(JSON.stringify(jstr));
                         } else if (msg.action == "meshes") {
                             if (msg.meshes) {
+                                var tmeshes = JSON.parse(JSON.stringify(msg.meshes));
+                                Object.values(tmeshes).forEach(m=>{
+                                    meshes[m._id].name = m.name;
+                                });
                                 var select_mesh = document.getElementById("select_mesh");
                                 select_mesh.options.length = 0;
-                                for (var i = 0; i < msg.meshes.length; i++) {
+                                for (var i in meshes) {
                                     var opt = document.createElement("option");
-                                    opt.text = msg.meshes[i].name;
-                                    opt.setAttribute("value", msg.meshes[i]._id);
+                                    opt.text = meshes[i].name;
+                                    opt.setAttribute("value", meshes[i]._id);
                                     select_mesh.add(opt);
-                                }
-                                if (msg.meshes.length>0) {                                    
+                                }                                
+
+                                if (tmeshes.length>0) {                                    
                                     select_mesh.options[0].selected = true;
                                     meshChanged(select_mesh);
                                 }
