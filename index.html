@@ -419,7 +419,7 @@
             //console.log(JSON.stringify(options));
             // authenticate
             var req = https.request(options, function (res) {
-                if (res.statusCode == 302) {
+                if (res.statusCode == 200 || res.statusCode == 302) {
                     var ws_headers = {
                         'Cookie': res.headers['set-cookie']
                     };
@@ -871,7 +871,7 @@
             //console.log(JSON.stringify(options));
             // authenticate
             var req = https.request(options, function (res) {
-                if (res.statusCode == 302) {
+                if (res.statusCode == 200 || res.statusCode == 302) {
                     var ws_headers = {
                         'Cookie': res.headers['set-cookie']
                     };
