@@ -472,8 +472,10 @@
                         } else if (msg.action == "meshes") {
                             if (msg.meshes) {
                                 var tmeshes = JSON.parse(JSON.stringify(msg.meshes));
-                                Object.values(tmeshes).forEach(m=>{
-                                    meshes[m._id].name = m.name;
+                                Object.values(tmeshes).forEach(m=>{                                    
+                                    if (meshes[m._id]!=null) {
+                                        meshes[m._id].name = m.name;
+                                    }
                                 });
                                 var select_mesh = document.getElementById("select_mesh");
                                 select_mesh.options.length = 0;
